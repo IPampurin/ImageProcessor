@@ -12,20 +12,23 @@ type StorageDB interface {
 	OutboxMethods
 }
 
-// ImageFileMethods - интерфейс с методами для работы с таблицей image_files внутреннего хранилища
+// ImageFileMethods - интерфейс с методами для работы с таблицей images внутреннего хранилища
 type ImageFileMethods interface {
 
-	// CreateOriginal создаёт запись в image_files при загрузке изображения в обрабоку (статус pending)
-	CreateOriginal(ctx context.Context, name, contentType string, size int64) (*db.ImageFile, error)
+	// InsertImage создаёт запись в images
+	InsertImage(ctx context.Context, image *db.Image) error
 
-	// GetByID возвращает запись из image_files по уникальному идентификатору
-	GetByID(ctx context.Context, id uuid.UUID) (*db.ImageFile, error)
+	// GetByID возвращает запись из images по уникальному идентификатору
+	GetByID(ctx context.Context, id uuid.UUID) (*db.Image, error)
 
-	// UpdateStatusOrErr обновляет запсь в image_files по статусу или ошибке
+	// UpdateStatusOrErr обновляет запсь в images по статусу или ошибке
 	UpdateStatusOrErr(ctx context.Context, id uuid.UUID, status string, errMsg *string) error
 
-	// DeleteImage удаляет запись из image_files
+	// DeleteImage удаляет запись из images
 	DeleteImage(ctx context.Context, id uuid.UUID) error
+
+	// ListLatestOriginals используется для отображения UI изображений в галерее
+	ListLatestOriginals(ctx context.Context, limit int) ([]db.Image, error)
 }
 
 // OutboxMethods - интерфейс с методами для работы с таблицей outbox внутреннего хранилища

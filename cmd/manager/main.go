@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
+	"github.com/IPampurin/ImageProcessor/pkg/manager/db"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/server"
 	"github.com/wb-go/wbf/logger"
 )
@@ -38,15 +39,16 @@ func main() {
 		log.Fatalf("Ошибка создания логгера: %v", err)
 	}
 	defer func() { _ = appLogger.(*logger.ZapAdapter) }()
-	/*
-		// получаем экземпляр БД
-		storageDB, err := db.InitDB(ctx, &cfg.DB, appLogger)
-		if err != nil {
-			appLogger.Error("ошибка подключения к БД", "error", err)
-			return
-		}
-		defer func() { _ = db.CloseDB(storageDB) }()
 
+	// получаем экземпляр БД
+	storageDB, err := db.InitDB(ctx, &cfg.DB, appLogger)
+	if err != nil {
+		appLogger.Error("ошибка подключения к БД", "error", err)
+		return
+	}
+	defer func() { _ = db.CloseDB(storageDB) }()
+
+	/*
 		storageS3, err := s3.InitS3(ctx, &cfg.S3, appLogger)
 		if err != nil {
 			appLogger.Error("ошибка подключения к внешнему S3 хранилищу", "error", err)
@@ -57,6 +59,7 @@ func main() {
 		// получаем экземпляр слоя бизнес-логики
 		service := service.InitService(ctx, storageDB)
 	*/
+
 	// запускаем сервер
 	err = server.Run(ctx, &cfg.Server, appLogger)
 	if err != nil {
