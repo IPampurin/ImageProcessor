@@ -3,14 +3,15 @@ package service
 import (
 	"context"
 
-	"github.com/IPampurin/ImageProcessor/pkg/domain"
+	"github.com/IPampurin/ImageProcessor/pkg/manager/api"
+	"github.com/google/uuid"
 )
 
 // ServiceMethods
 type ServiceMethods interface {
 
-	// SaveImageToDB
-	SaveImageToDB(ctx context.Context, imageTask *domain.ImageTask) error
+	// UploadImage
+	UploadImage(ctx context.Context, req *api.UploadRequest) (uuid.UUID, error)
 
 	// SaveMessageToOutbox(ctx context.Context, )
 }
