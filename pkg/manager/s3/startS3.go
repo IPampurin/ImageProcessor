@@ -14,7 +14,8 @@ import (
 
 // S3 хранит подключение к S3-совместимому хранилищу
 type S3 struct {
-	*s3.Client
+	Client *s3.Client
+	Bucket string
 }
 
 // InitS3 инициализирует подключение к S3-совместимому хранилищу (например, MinIO)
@@ -56,7 +57,9 @@ func InitS3(ctx context.Context, cfg *configuration.ConfS3, log logger.Logger) (
 
 	log.Info("S3 клиент успешно инициализирован, бакет доступен.")
 
-	return &S3{client}, nil
+	return &S3{
+		Client: client,
+		Bucket: cfg.Bucket}, nil
 }
 
 // CloseS3 освобождает ресурсы, связанные с клиентом S3
@@ -67,6 +70,7 @@ func CloseS3(s3Client *S3) error {
 	if s3Client != nil {
 		// при необходимости можно обнулить встроенный клиент
 		s3Client.Client = nil
+		s3Client.Bucket = ""
 	}
 
 	return nil

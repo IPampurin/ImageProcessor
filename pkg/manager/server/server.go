@@ -6,13 +6,15 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/IPampurin/ImageProcessor/pkg/manager/api"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
+	"github.com/IPampurin/ImageProcessor/pkg/manager/service"
 	"github.com/gin-gonic/gin"
 	"github.com/wb-go/wbf/ginext"
 	"github.com/wb-go/wbf/logger"
 )
 
-func Run(ctx context.Context, cfgServer *configuration.ConfServer, log logger.Logger) error {
+func Run(ctx context.Context, cfgServer *configuration.ConfServer, svc *service.Service, log logger.Logger) error {
 
 	// создаём движок Gin через обёртку ginext
 	engine := ginext.New(cfgServer.GinMode)
@@ -30,10 +32,10 @@ func Run(ctx context.Context, cfgServer *configuration.ConfServer, log logger.Lo
 	})
 
 	// регистрируем эндпоинты
-	engine.POST("/upload", api.UploadImageToProcess(service, log))   // загрузка изображения на обработку
-	engine.GET("/image/:id", api.LoadImageFromProcess(service, log)) // получение обработанного изображения
-	engine.DELETE("/image/:id", api.DeleteImage(service, log))       // удаление изображения (и оригинала, и обработанного)
-	engine.GET("/images", api.GetImages(service, log))               // список последних изображений для UI
+	engine.POST("/upload", api.UploadImageToProcess(svc, log))   // загрузка изображения на обработку
+	engine.GET("/image/:id", api.LoadImageFromProcess(svc, log)) // получение обработанного изображения
+	engine.DELETE("/image/:id", api.DeleteImage(svc, log))       // удаление изображения (и оригинала, и обработанного)
+	engine.GET("/images", api.GetImages(svc, log))               // список последних изображений для UI
 
 	// раздаём статические файлы из папки ./web
 	engine.Static("/static", "./web")

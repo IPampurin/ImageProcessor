@@ -9,14 +9,13 @@ import (
 )
 
 // Upload сохраняет файл в хранилище по указанному ключу (пути)
-func (s *S3) Upload(ctx context.Context, bucket, path string, reader io.Reader, size int64, contentType string) error {
+func (s *S3) Upload(ctx context.Context, path string, reader io.Reader, contentType string) error {
 
 	input := &s3.PutObjectInput{
-		Bucket:        aws.String(bucket),
-		Key:           aws.String(path),
-		Body:          reader,
-		ContentType:   aws.String(contentType),
-		ContentLength: aws.Int64(size),
+		Bucket:      aws.String(s.Bucket),
+		Key:         aws.String(path),
+		Body:        reader,
+		ContentType: aws.String(contentType),
 	}
 	_, err := s.Client.PutObject(ctx, input)
 
@@ -24,12 +23,13 @@ func (s *S3) Upload(ctx context.Context, bucket, path string, reader io.Reader, 
 }
 
 // Download возвращает ReadCloser для чтения файла по указанному ключу (пути)
-func (s *S3) Download(ctx context.Context, bucket, path string) (io.ReadCloser, error) {
+func (s *S3) Download(ctx context.Context, path string) (io.ReadCloser, error) {
 
 	input := &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
+		Bucket: aws.String(s.Bucket),
 		Key:    aws.String(path),
 	}
+
 	output, err := s.Client.GetObject(ctx, input)
 	if err != nil {
 		return nil, err
@@ -39,13 +39,19 @@ func (s *S3) Download(ctx context.Context, bucket, path string) (io.ReadCloser, 
 }
 
 // Delete удаляет файл по указанному ключу (пути)
-func (s *S3) Delete(ctx context.Context, bucket, path string) error {
+func (s *S3) Delete(ctx context.Context, path string) error {
 
 	input := &s3.DeleteObjectInput{
-		Bucket: aws.String(bucket),
+		Bucket: aws.String(s.Bucket),
 		Key:    aws.String(path),
 	}
 	_, err := s.Client.DeleteObject(ctx, input)
 
 	return err
+}
+
+// GetBucket возвращает имя бакета хранилища
+func (s *S3) GetBucket() string {
+
+	return s.Bucket
 }

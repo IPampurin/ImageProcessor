@@ -4,11 +4,52 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/IPampurin/ImageProcessor/pkg/domain"
 	"github.com/google/uuid"
 )
 
+// domImageToDbImage преобразует доменную модель ImageData в модель Image локальной БД
+func domImageToDbImage(iData *domain.ImageData) *Image {
+
+	return &Image{
+		ID:           iData.ID,
+		OriginalID:   iData.OriginalID,
+		Name:         iData.Name,
+		Type:         iData.Type,
+		ContentType:  iData.ContentType,
+		Size:         iData.Size,
+		Width:        iData.Width,
+		Height:       iData.Height,
+		Status:       iData.Status,
+		ErrorMessage: iData.ErrorMessage,
+		StoragePath:  iData.StoragePath,
+		CreatedAt:    iData.CreatedAt,
+	}
+}
+
+// dbImageToDomImage преобразует модель Image локальной БД в доменную модель ImageData
+func dbImageToDomImage(i *Image) *domain.ImageData {
+
+	return &domain.ImageData{
+		ID:           i.ID,
+		OriginalID:   i.OriginalID,
+		Name:         i.Name,
+		Type:         i.Type,
+		ContentType:  i.ContentType,
+		Size:         i.Size,
+		Width:        i.Width,
+		Height:       i.Height,
+		Status:       i.Status,
+		ErrorMessage: i.ErrorMessage,
+		StoragePath:  i.StoragePath,
+		CreatedAt:    i.CreatedAt,
+	}
+}
+
 // InsertImage создаёт запись в images
-func (d *DataBase) InsertImage(ctx context.Context, i *Image) error {
+func (d *DataBase) InsertImage(ctx context.Context, iData *domain.ImageData) error {
+
+	i := domImageToDbImage(iData)
 
 	query := `INSERT INTO images (id, original_id, name, type, content_type, size, width, height, status, error_message, storage_path, created_at)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
@@ -34,7 +75,7 @@ func (d *DataBase) InsertImage(ctx context.Context, i *Image) error {
 }
 
 // GetByID возвращает запись из images по уникальному идентификатору
-func (d *DataBase) GetByID(ctx context.Context, uid uuid.UUID) (*Image, error) {
+func (d *DataBase) GetByID(ctx context.Context, uid uuid.UUID) (*domain.ImageData, error) {
 
 	query := `SELECT *
 	            FROM images
@@ -59,7 +100,7 @@ func (d *DataBase) GetByID(ctx context.Context, uid uuid.UUID) (*Image, error) {
 		return nil, fmt.Errorf("ошибка GetByID получения записи в images: %w", err)
 	}
 
-	return i, nil
+	return dbImageToDomImage(i), nil
 }
 
 // UpdateStatusOrErr обновляет запсь в images по статусу или ошибке
@@ -93,7 +134,7 @@ func (d *DataBase) DeleteImage(ctx context.Context, uid uuid.UUID) error {
 }
 
 // ListLatestOriginals используется для отображения UI изображений в галерее
-func (d *DataBase) ListLatestOriginals(ctx context.Context, limit int) ([]*Image, error) {
+func (d *DataBase) ListLatestOriginals(ctx context.Context, limit int) ([]*domain.ImageData, error) {
 
 	query := `SELECT *
 	            FROM images
@@ -107,9 +148,9 @@ func (d *DataBase) ListLatestOriginals(ctx context.Context, limit int) ([]*Image
 	}
 	defer rows.Close()
 
-	result := make([]*Image, 0)
+	images := make([]*Image, 0)
 	for rows.Next() {
-		var i Image
+		i := &Image{}
 		err := rows.Scan(
 			&i.ID,
 			&i.OriginalID,
@@ -128,10 +169,15 @@ func (d *DataBase) ListLatestOriginals(ctx context.Context, limit int) ([]*Image
 			return nil, fmt.Errorf("ошибка ListLatestOriginals при сканировании записи из images: %w", err)
 		}
 
-		result = append(result, &i)
+		images = append(images, i)
 	}
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("ошибка ListLatestOriginals при итерации по записям из images: %w", err)
+	}
+
+	result := make([]*domain.ImageData, len(images))
+	for i := range result {
+		result[i] = dbImageToDomImage(images[i])
 	}
 
 	return result, nil

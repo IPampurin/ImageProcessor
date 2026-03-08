@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 
+	"github.com/IPampurin/ImageProcessor/pkg/domain"
 	"github.com/google/uuid"
 )
 
@@ -15,10 +16,10 @@ type StorageDB interface {
 type ImageFileMethods interface {
 
 	// InsertImage создаёт запись в images
-	InsertImage(ctx context.Context, i *Image) error
+	InsertImage(ctx context.Context, iData *domain.ImageData) error
 
 	// GetByID возвращает запись из images по уникальному идентификатору
-	GetByID(ctx context.Context, uid uuid.UUID) (*Image, error)
+	GetByID(ctx context.Context, uid uuid.UUID) (*domain.ImageData, error)
 
 	// UpdateStatusOrErr обновляет запсь в images по статусу или ошибке
 	UpdateStatusOrErr(ctx context.Context, id uuid.UUID, status string, errMsg *string) error
@@ -27,17 +28,17 @@ type ImageFileMethods interface {
 	DeleteImage(ctx context.Context, uid uuid.UUID) error
 
 	// ListLatestOriginals используется для отображения UI изображений в галерее
-	ListLatestOriginals(ctx context.Context, limit int) ([]*Image, error)
+	ListLatestOriginals(ctx context.Context, limit int) ([]*domain.ImageData, error)
 }
 
 // OutboxMethods - интерфейс с методами для работы с таблицей outbox внутреннего хранилища
 type OutboxMethods interface {
 
 	// CreateOutbox создаёт запись в таблице outbox
-	CreateOutbox(ctx context.Context, outRow *Outbox) error
+	CreateOutbox(ctx context.Context, outData *domain.OutboxData) error
 
 	// GetUnsentOutbox получает свежие записи для отправки брокеру
-	GetUnsentOutbox(ctx context.Context, limit int) ([]*Outbox, error)
+	GetUnsentOutbox(ctx context.Context, limit int) ([]*domain.OutboxData, error)
 
 	// DeleteOutbox удаляет запись из таблицы outbox
 	DeleteOutbox(ctx context.Context, uid uuid.UUID) error

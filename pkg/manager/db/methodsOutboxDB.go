@@ -4,11 +4,38 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/IPampurin/ImageProcessor/pkg/domain"
 	"github.com/google/uuid"
 )
 
+// domOutboxToDbOutbox преобразует доменную модель OutboxData в модель Outbox локальной БД
+func domOutboxToDbOutbox(domOut *domain.OutboxData) *Outbox {
+
+	return &Outbox{
+		ID:        domOut.ID,
+		Topic:     domOut.Topic,
+		Key:       domOut.Key,
+		Payload:   domOut.Payload,
+		CreatedAt: domOut.CreatedAt,
+	}
+}
+
+// dbOutboxToDomOutboxData преобразует модель Outbox локальной БД в доменную модель OutboxData
+func dbOutboxToDomOutboxData(dbOut *Outbox) *domain.OutboxData {
+
+	return &domain.OutboxData{
+		ID:        dbOut.ID,
+		Topic:     dbOut.Topic,
+		Key:       dbOut.Key,
+		Payload:   dbOut.Payload,
+		CreatedAt: dbOut.CreatedAt,
+	}
+}
+
 // CreateOutbox создаёт запись в таблице outbox
-func (d *DataBase) CreateOutbox(ctx context.Context, rowToSend *Outbox) error {
+func (d *DataBase) CreateOutbox(ctx context.Context, dataToSend *domain.OutboxData) error {
+
+	rowToSend := domOutboxToDbOutbox(dataToSend)
 
 	query := `INSERT INTO outbox (id, topic, key, payload, created_at)
 	          VALUES ($1, $2, $3, $4, $5)`
@@ -27,7 +54,7 @@ func (d *DataBase) CreateOutbox(ctx context.Context, rowToSend *Outbox) error {
 }
 
 // GetUnsentOutbox получает limit записей для отправки брокеру
-func (d *DataBase) GetUnsentOutbox(ctx context.Context, limit int) ([]*Outbox, error) {
+func (d *DataBase) GetUnsentOutbox(ctx context.Context, limit int) ([]*domain.OutboxData, error) {
 
 	query := `SELECT *
 	            FROM outbox
@@ -40,9 +67,9 @@ func (d *DataBase) GetUnsentOutbox(ctx context.Context, limit int) ([]*Outbox, e
 	}
 	defer rows.Close()
 
-	result := make([]*Outbox, 0)
+	rowsToSend := make([]*Outbox, 0)
 	for rows.Next() {
-		var outRow Outbox
+		outRow := &Outbox{}
 		err := rows.Scan(
 			&outRow.ID,
 			&outRow.Topic,
@@ -53,10 +80,15 @@ func (d *DataBase) GetUnsentOutbox(ctx context.Context, limit int) ([]*Outbox, e
 			return nil, fmt.Errorf("ошибка GetUnsentOutbox при сканировании записи из outbox: %w", err)
 		}
 
-		result = append(result, &outRow)
+		rowsToSend = append(rowsToSend, outRow)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("ошибка GetUnsentOutbox при итерации по записям из outbox: %w", err)
+	}
+
+	result := make([]*domain.OutboxData, len(rowsToSend))
+	for i := range rowsToSend {
+		result[i] = dbOutboxToDomOutboxData(rowsToSend[i])
 	}
 
 	return result, nil

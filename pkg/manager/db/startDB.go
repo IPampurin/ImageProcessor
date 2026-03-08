@@ -24,13 +24,13 @@ func InitDB(ctx context.Context, cfgDb *configuration.ConfDB, log logger.Logger)
 	// создаём клиент pgxdriver с параметрами по умолчанию
 	pgxConn, err := pgxdriver.New(dsn, log)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания клиента pgxdriver: %w", err)
+		return nil, fmt.Errorf("ошибка InitDB создания клиента pgxdriver: %w", err)
 	}
 	// defer pg.Close() // закрываем из main()
 
 	// проверяем соединение
 	if err = pgxConn.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("ошибка соединения с клиентом pgxdriver: %w", err)
+		return nil, fmt.Errorf("ошибка InitDB соединения с клиентом pgxdriver: %w", err)
 	}
 
 	storageDB := &DataBase{pgxConn}

@@ -11,6 +11,7 @@ import (
 	"github.com/IPampurin/ImageProcessor/pkg/manager/db"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/s3"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/server"
+	"github.com/IPampurin/ImageProcessor/pkg/manager/service"
 	"github.com/wb-go/wbf/logger"
 )
 
@@ -57,13 +58,11 @@ func main() {
 	}
 	defer func() { _ = s3.CloseS3(storageS3) }()
 
-	/*
-		// получаем экземпляр слоя бизнес-логики
-		service := service.InitService(ctx, storageDB)
-	*/
+	// получаем экземпляр слоя бизнес-логики
+	service := service.InitService(ctx, storageDB, storageS3)
 
 	// запускаем сервер
-	err = server.Run(ctx, &cfg.Server, appLogger)
+	err = server.Run(ctx, &cfg.Server, service, appLogger)
 	if err != nil {
 		appLogger.Error("Ошибка сервера", "error", err)
 		cancel()
