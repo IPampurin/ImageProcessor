@@ -7,12 +7,14 @@ import (
 	"github.com/IPampurin/ImageProcessor/pkg/manager/s3"
 )
 
+// Service реализует бизнес-логику приложения
 type Service struct {
 	image  db.ImageFileMethods
 	outbox db.OutboxMethods
 	s3     s3.S3Methods
 }
 
+// InitService создаёт новый экземпляр сервиса с переданными зависимостями
 func InitService(ctx context.Context, storage *db.DataBase, storageS3 *s3.S3) *Service {
 
 	svc := &Service{

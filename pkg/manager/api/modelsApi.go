@@ -32,3 +32,18 @@ type UploadRequest struct {
 type UploadResponse struct {
 	ID uuid.UUID `json:"id"` // уникальный идентификатор загруженного изображения
 }
+
+// вспомогательные структуры для ответа на /images
+type imageVariantResponse struct {
+	Type   string `json:"type"`
+	Width  *int   `json:"width,omitempty"`
+	Height *int   `json:"height,omitempty"`
+	Size   int64  `json:"size"`
+}
+
+type imageResponse struct {
+	ID           uuid.UUID              `json:"id"`
+	OriginalName string                 `json:"originalName"`
+	Status       string                 `json:"status"`
+	Variants     []imageVariantResponse `json:"variants"`
+}
