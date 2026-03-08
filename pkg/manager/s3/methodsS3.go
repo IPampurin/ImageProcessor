@@ -1,0 +1,22 @@
+package s3
+
+import (
+	"context"
+	"io"
+)
+
+// Upload сохраняет файл в хранилище по указанному ключу (пути)
+func (s3 *S3) Upload(ctx context.Context, path string, reader io.Reader, size int64, contentType string) error {
+
+}
+
+// Download возвращает ReadCloser для чтения файла по указанному ключу (пути)
+func (s3 *S3) Download(ctx context.Context, path string) (io.ReadCloser, error) {
+
+}
+
+// Delete удаляет файл по указанному ключу (пути)
+func (s3 *S3) Delete(ctx context.Context, path string) error {
+
+	return nil
+}

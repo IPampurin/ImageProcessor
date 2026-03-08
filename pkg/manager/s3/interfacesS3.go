@@ -14,6 +14,6 @@ type StorageS3 interface {
 	// Download возвращает ReadCloser для чтения файла по указанному ключу (пути)
 	Download(ctx context.Context, path string) (io.ReadCloser, error)
 
-	// Delete удаляет файл по указанному ключу (по пути)
+	// Delete удаляет файл по указанному ключу (пути)
 	Delete(ctx context.Context, path string) error
 }
