@@ -9,6 +9,7 @@ import (
 
 	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/db"
+	"github.com/IPampurin/ImageProcessor/pkg/manager/s3"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/server"
 	"github.com/wb-go/wbf/logger"
 )
@@ -48,14 +49,14 @@ func main() {
 	}
 	defer func() { _ = db.CloseDB(storageDB) }()
 
-	/*
-		storageS3, err := s3.InitS3(ctx, &cfg.S3, appLogger)
-		if err != nil {
-			appLogger.Error("ошибка подключения к внешнему S3 хранилищу", "error", err)
-			return
-		}
-		defer func() { _ = s3.CloseDB(storageS3) }()
+	storageS3, err := s3.InitS3(ctx, &cfg.S3, appLogger)
+	if err != nil {
+		appLogger.Error("ошибка подключения к внешнему S3 хранилищу", "error", err)
+		return
+	}
+	defer func() { _ = s3.CloseS3(storageS3) }()
 
+	/*
 		// получаем экземпляр слоя бизнес-логики
 		service := service.InitService(ctx, storageDB)
 	*/

@@ -22,12 +22,18 @@ type ConfDB struct {
 
 // ConfS3 - параметры подключения к внешнему S3 хранилищу
 type ConfS3 struct {
+	Endpoint  string `env:"S3_ENDPOINT"   env-default:"localhost:9000"`
+	AccessKey string `env:"S3_ACCESS_KEY" env-default:"minioadmin"`
+	SecretKey string `env:"S3_SECRET_KEY" env-default:"minioadmin"`
+	Bucket    string `env:"S3_BUCKET"     env-default:"images"`
+	UseSSL    bool   `env:"S3_USE_SSL"    env-default:"false"`
 }
 
 // Config — корневая структура конфигурации
 type Config struct {
 	Server ConfServer
 	DB     ConfDB
+	S3     ConfS3
 }
 
 // ReadConfig загружает .env файл из корня проекта и возвращает заполненную структуру Config
