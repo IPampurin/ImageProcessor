@@ -49,6 +49,7 @@ func main() {
 	}
 	defer func() { _ = db.CloseDB(storageDB) }()
 
+	// получаем экземпляр S3-совместимого хранилища
 	storageS3, err := s3.InitS3(ctx, &cfg.S3, appLogger)
 	if err != nil {
 		appLogger.Error("ошибка подключения к внешнему S3 хранилищу", "error", err)
