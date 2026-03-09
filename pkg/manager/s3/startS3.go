@@ -2,6 +2,7 @@ package s3
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
@@ -9,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/wb-go/wbf/logger"
 )
 
@@ -52,7 +54,20 @@ func InitS3(ctx context.Context, cfg *configuration.ConfS3, log logger.Logger) (
 		Bucket: aws.String(cfg.Bucket),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка проверки бакета: bucket %q не доступен: %w", cfg.Bucket, err)
+		// если ошибка NotFound, пробуем создать бакет
+		var notFound *types.NotFound
+		if errors.As(err, &notFound) {
+			log.Info("бакет не найден, пробуем создать", "bucket", cfg.Bucket)
+			_, createErr := client.CreateBucket(ctx, &s3.CreateBucketInput{
+				Bucket: aws.String(cfg.Bucket),
+			})
+			if createErr != nil {
+				return nil, fmt.Errorf("не удалось создать бакет: %w", createErr)
+			}
+			log.Info("бакет успешно создан", "bucket", cfg.Bucket)
+		} else {
+			return nil, fmt.Errorf("ошибка проверки бакета: %w", err)
+		}
 	}
 
 	log.Info("S3 клиент успешно инициализирован, бакет доступен.")

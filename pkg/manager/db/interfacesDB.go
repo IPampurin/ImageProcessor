@@ -29,6 +29,9 @@ type ImageFileMethods interface {
 
 	// ListLatestOriginals используется для отображения UI изображений в галерее
 	ListLatestOriginals(ctx context.Context, limit int) ([]*domain.ImageData, error)
+
+	// GetVariantsByOriginalID возвращает все варианты для указанного оригинала
+	GetVariantsByOriginalID(ctx context.Context, originalID uuid.UUID) ([]*domain.ImageData, error)
 }
 
 // OutboxMethods - интерфейс с методами для работы с таблицей outbox внутреннего хранилища

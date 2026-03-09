@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -99,7 +98,7 @@ func (s *Service) UploadImage(ctx context.Context, data *domain.UploadData, log 
 	// 7. Создаём запись в outbox
 	outboxData := &domain.OutboxData{
 		ID:        uuid.New(),
-		Topic:     "image-tasks",
+		Topic:     s.inputTopic,
 		Key:       imageID.String(),
 		Payload:   payload,
 		CreatedAt: now,
@@ -137,8 +136,20 @@ func (s *Service) GetImage(ctx context.Context, id uuid.UUID, variant string, lo
 	if variant == "original" || variant == "" {
 		targetImg = img
 	} else {
-		// TODO: добавить получение варианта по original_id и type
-		return nil, "", errors.New("получение вариантов пока не реализовано")
+		// если запрошен не оригинал, ищем среди вариантов по original_id и type
+		variants, err := s.image.GetVariantsByOriginalID(ctx, id)
+		if err != nil {
+			return nil, "", fmt.Errorf("не удалось получить варианты: %w", err)
+		}
+		for _, v := range variants {
+			if v.Type == variant {
+				targetImg = v
+				break
+			}
+		}
+		if targetImg == nil {
+			return nil, "", fmt.Errorf("вариант %s не найден", variant)
+		}
 	}
 
 	// 3. Проверяем статус: только completed можно скачать
@@ -165,19 +176,27 @@ func (s *Service) DeleteImage(ctx context.Context, id uuid.UUID, log logger.Logg
 		return fmt.Errorf("изображение не найдено: %w", err)
 	}
 
-	// 2. Собираем пути для удаления из S3 (оригинал + варианты)
+	// 2. Получаем все варианты этого оригинала
+	variants, err := s.image.GetVariantsByOriginalID(ctx, id)
+	if err != nil {
+		log.Error("не удалось получить варианты для удаления", "error", err, "originalID", id)
+		// продолжаем, чтобы удалить хотя бы оригинал
+	}
+
+	// 3. Собираем пути для удаления из S3 (оригинал + варианты)
 	pathsToDelete := []string{original.StoragePath}
+	for _, v := range variants {
+		pathsToDelete = append(pathsToDelete, v.StoragePath)
+	}
 
-	// TODO: добавить получение всех вариантов этого оригинала и их путей
-
-	// 3. Удаляем файлы из S3 (игнорируем ошибки, чтобы попытаться удалить остальные)
+	// 4. Удаляем файлы из S3 (игнорируем ошибки, чтобы попытаться удалить остальные)
 	for _, path := range pathsToDelete {
 		if delErr := s.s3.Delete(ctx, path); delErr != nil {
 			log.Error("не удалось удалить файл из S3", "error", delErr, "path", path)
 		}
 	}
 
-	// 4. Удаляем запись из БД (каскадно удалятся и варианты, если настроено)
+	// 5. Удаляем запись из БД (каскадно удалятся и варианты, если настроено)
 	if err := s.image.DeleteImage(ctx, id); err != nil {
 		return fmt.Errorf("ошибка удаления записи из БД: %w", err)
 	}
@@ -198,4 +217,78 @@ func (s *Service) ListImages(ctx context.Context, limit int, log logger.Logger) 
 	}
 
 	return images, nil
+}
+
+// ProcessResult обрабатывает результат из очереди, обновляет БД
+func (s *Service) ProcessResult(ctx context.Context, result *domain.ImageResult, log logger.Logger) error {
+
+	imageID, err := uuid.Parse(result.ImageID)
+	if err != nil {
+		return fmt.Errorf("некорректный imageID: %w", err)
+	}
+
+	original, err := s.image.GetByID(ctx, imageID)
+	if err != nil {
+		return fmt.Errorf("оригинал не найден: %w", err)
+	}
+
+	if result.Status == "failed" {
+		errMsg := result.ErrorMessage
+		if errMsg == nil {
+			msg := "unknown error"
+			errMsg = &msg
+		}
+		if err := s.image.UpdateStatusOrErr(ctx, imageID, "failed", errMsg); err != nil {
+			return fmt.Errorf("не удалось обновить статус оригинала: %w", err)
+		}
+		return nil
+	}
+
+	// Status == "completed"
+	for _, v := range result.Variants {
+
+		variantID := uuid.New()
+
+		var width, height *int
+		if v.Width != nil {
+			width = v.Width
+		}
+		if v.Height != nil {
+			height = v.Height
+		}
+
+		variantData := &domain.ImageData{
+			ID:           variantID,
+			OriginalID:   &imageID,
+			Name:         original.Name, // можно модифицировать
+			Type:         v.Type,
+			ContentType:  v.ContentType,
+			Size:         v.Size,
+			Width:        width,
+			Height:       height,
+			Status:       "completed",
+			ErrorMessage: nil,
+			StoragePath:  v.StoragePath,
+			CreatedAt:    time.Now(),
+		}
+		if err := s.image.InsertImage(ctx, variantData); err != nil {
+			log.Error("не удалось вставить вариант", "error", err, "originalID", imageID, "type", v.Type)
+			// продолжаем, но логируем
+		}
+	}
+
+	// обновляем статус оригинала на completed
+	if original.Status != "completed" {
+		if err := s.image.UpdateStatusOrErr(ctx, imageID, "completed", nil); err != nil {
+			log.Error("не удалось обновить статус оригинала", "error", err, "originalID", imageID)
+		}
+	}
+
+	return nil
+}
+
+// GetVariants возвращает все варианты для оригинала
+func (s *Service) GetVariants(ctx context.Context, originalID uuid.UUID, log logger.Logger) ([]*domain.ImageData, error) {
+
+	return s.image.GetVariantsByOriginalID(ctx, originalID)
 }

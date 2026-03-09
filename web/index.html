@@ -33,6 +33,8 @@
         .delete-btn:hover { background: #fecaca; }
         .empty { color: #64748b; text-align: center; padding: 48px; background: #f8fafc; border-radius: 24px; }
         .dimensions { font-size: 12px; color: #64748b; margin-top: 8px; }
+        .download-btn { margin-top: 8px; background: #e2e8f0; border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+        .download-btn:hover { background: #cbd5e1; }
     </style>
 </head>
 <body>
@@ -155,8 +157,8 @@
             }
         }
 
-        function downloadImage(id, variant = 'original') {
-            window.location.href = `${API_BASE}/image/${id}/file?variant=${variant}`;
+        function downloadImage(id, variantType) {
+            window.location.href = `${API_BASE}/image/${id}?variant=${variantType}`;
         }
 
         function renderGallery() {
@@ -167,9 +169,8 @@
 
             let html = '';
             images.forEach(img => {
-                const original = { name: img.originalName, status: img.status, variants: img.variants || [] };
-                const processedVariant = original.variants.find(v => v.type !== 'original');
-                const processedUrl = processedVariant ? `${API_BASE}/image/${img.id}/file?variant=${processedVariant.type}` : null;
+                const hasVariants = img.variants && img.variants.length > 0;
+                const firstVariant = hasVariants ? img.variants[0] : null;
 
                 html += `
                     <div class="gallery-item" data-id="${img.id}">
@@ -177,17 +178,18 @@
                         <div class="original">
                             <h3>Оригинал</h3>
                             <div class="image-box" onclick="downloadImage('${img.id}', 'original')">
-                                ${img.status === 'completed' ? `<img src="${API_BASE}/image/${img.id}/file?variant=original" alt="${img.originalName}">` : '<div>⏳</div>'}
+                                ${img.status === 'completed' ? `<img src="${API_BASE}/image/${img.id}?variant=original" alt="${img.originalName}">` : '<div>⏳</div>'}
                                 <span class="status-badge">${getStatusText(img.status)}</span>
                             </div>
                             <div class="dimensions">${img.originalName}</div>
                         </div>
                         <div class="processed">
-                            <h3>Обработанное</h3>
-                            <div class="image-box" onclick="${processedVariant ? `downloadImage('${img.id}', '${processedVariant.type}')` : ''}">
-                                ${img.status === 'completed' && processedVariant ? `<img src="${processedUrl}" alt="processed">` : '<div>—</div>'}
+                            <h3>${firstVariant ? firstVariant.type : 'Результат'}</h3>
+                            <div class="image-box" onclick="${firstVariant ? `downloadImage('${img.id}', '${firstVariant.type}')` : ''}">
+                                ${img.status === 'completed' && firstVariant ? `<img src="${API_BASE}/image/${img.id}?variant=${firstVariant.type}" alt="processed">` : '<div>⏳</div>'}
                             </div>
-                            ${processedVariant ? `<div class="dimensions">${processedVariant.width}×${processedVariant.height}</div>` : ''}
+                            ${firstVariant ? `<div class="dimensions">${firstVariant.width}×${firstVariant.height}</div>` : ''}
+                            ${firstVariant ? `<button class="download-btn" onclick="downloadImage('${img.id}', '${firstVariant.type}')">Скачать</button>` : ''}
                         </div>
                     </div>
                 `;

@@ -182,3 +182,34 @@ func (d *DataBase) ListLatestOriginals(ctx context.Context, limit int) ([]*domai
 
 	return result, nil
 }
+
+// GetVariantsByOriginalID возвращает все варианты для указанного оригинала
+func (d *DataBase) GetVariantsByOriginalID(ctx context.Context, originalID uuid.UUID) ([]*domain.ImageData, error) {
+
+	query := `SELECT *
+	            FROM images
+			   WHERE original_id = $1`
+
+	rows, err := d.Pool.Query(ctx, query, originalID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка GetVariantsByOriginalID: %w", err)
+	}
+	defer rows.Close()
+
+	variants := make([]*domain.ImageData, 0)
+	for rows.Next() {
+		i := &Image{}
+		err := rows.Scan(
+			&i.ID, &i.OriginalID, &i.Name, &i.Type, &i.ContentType,
+			&i.Size, &i.Width, &i.Height, &i.Status, &i.ErrorMessage,
+			&i.StoragePath, &i.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка GetVariantsByOriginalID сканирования варианта: %w", err)
+		}
+
+		variants = append(variants, dbImageToDomImage(i))
+	}
+
+	return variants, nil
+}

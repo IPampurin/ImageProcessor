@@ -2,17 +2,25 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
+	"github.com/IPampurin/ImageProcessor/pkg/domain"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/db"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/s3"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/server"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/service"
+	"github.com/wb-go/wbf/kafka"
 	"github.com/wb-go/wbf/logger"
+	"github.com/wb-go/wbf/retry"
+
+	kafkago "github.com/segmentio/kafka-go"
 )
 
 func main() {
@@ -58,8 +66,22 @@ func main() {
 	}
 	defer func() { _ = s3.CloseS3(storageS3) }()
 
+	// инициализируем Kafka
+	brokers := strings.Split(cfg.Kafka.Brokers, ",")
+	producer := kafka.NewProducer(brokers, cfg.Kafka.InputTopic)
+	defer producer.Close()
+
+	consumer := kafka.NewConsumer(brokers, cfg.Kafka.OutputTopic, cfg.Kafka.ConsumerGroup)
+	defer consumer.Close()
+
 	// получаем экземпляр слоя бизнес-логики
-	service := service.InitService(ctx, storageDB, storageS3)
+	service := service.InitService(ctx, storageDB, storageS3, cfg.Kafka.InputTopic)
+
+	// запускаем релизер outbox
+	go startOutboxRelay(ctx, storageDB, producer, appLogger)
+
+	// запускаем consumer результатов
+	go startResultConsumer(ctx, consumer, service, appLogger)
 
 	// запускаем сервер
 	err = server.Run(ctx, &cfg.Server, service, appLogger)
@@ -70,6 +92,65 @@ func main() {
 	}
 
 	appLogger.Info("Приложение корректно завершено")
+}
+
+// startOutboxRelay периодически читает outbox и отправляет сообщения в Kafka
+func startOutboxRelay(ctx context.Context, db *db.DataBase, producer *kafka.Producer, log logger.Logger) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("остановка outbox relay")
+			return
+		case <-ticker.C:
+			outboxList, err := db.GetUnsentOutbox(ctx, 100)
+			if err != nil {
+				log.Error("ошибка получения outbox записей", "error", err)
+				continue
+			}
+			for _, out := range outboxList {
+				err := producer.Send(ctx, []byte(out.Key), out.Payload)
+				if err != nil {
+					log.Error("ошибка отправки сообщения в Kafka", "error", err, "outboxID", out.ID)
+					continue
+				}
+				if err := db.DeleteOutbox(ctx, out.ID); err != nil {
+					log.Error("ошибка удаления outbox записи", "error", err, "outboxID", out.ID)
+				} else {
+					log.Info("отправлено и удалено из outbox", "outboxID", out.ID, "key", out.Key)
+				}
+			}
+		}
+	}
+}
+
+// startResultConsumer читает результаты обработки из Kafka и обновляет БД
+func startResultConsumer(ctx context.Context, consumer *kafka.Consumer, svc *service.Service, log logger.Logger) {
+	msgCh := make(chan kafkago.Message) // используем тип из kafkago
+	consumer.StartConsuming(ctx, msgCh, retry.Strategy{
+		Attempts: 3,
+		Delay:    100 * time.Millisecond,
+	})
+
+	for msg := range msgCh {
+		var result domain.ImageResult
+		if err := json.Unmarshal(msg.Value, &result); err != nil {
+			log.Error("ошибка десериализации результата", "error", err)
+			_ = consumer.Commit(ctx, msg)
+			continue
+		}
+
+		if err := svc.ProcessResult(ctx, &result, log); err != nil {
+			log.Error("ошибка обработки результата", "error", err, "imageID", result.ImageID)
+			_ = consumer.Commit(ctx, msg)
+			continue
+		}
+
+		if err := consumer.Commit(ctx, msg); err != nil {
+			log.Error("ошибка коммита", "error", err)
+		}
+	}
 }
 
 // signalHandler обрабатывет сигналы отмены

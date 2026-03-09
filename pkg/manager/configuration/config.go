@@ -29,11 +29,20 @@ type ConfS3 struct {
 	UseSSL    bool   `env:"S3_USE_SSL"    env-default:"false"`
 }
 
+// ConfKafka - параметры работы брокера
+type ConfKafka struct {
+	Brokers       string `env:"KAFKA_BROKERS"       env-default:"localhost:9092"`
+	InputTopic    string `env:"KAFKA_INPUT_TOPIC"   env-default:"image-tasks"`
+	OutputTopic   string `env:"KAFKA_OUTPUT_TOPIC"  env-default:"image-results"`
+	ConsumerGroup string `env:"KAFKA_CONSUMER_GROUP" env-default:"image-processor-manager"`
+}
+
 // Config — корневая структура конфигурации
 type Config struct {
 	Server ConfServer
 	DB     ConfDB
 	S3     ConfS3
+	Kafka  ConfKafka
 }
 
 // ReadConfig загружает .env файл из корня проекта и возвращает заполненную структуру Config

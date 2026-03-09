@@ -65,23 +65,20 @@ type ResizeOptions struct {
 	Height int // высота изображения
 }
 
-/*
-task := ImageTask{
-    ImageID:   "f47e1b3c-8e5a-4b7d-9c2a-3d1e6f8a9b0c",
-    ObjectKey: "images/f47e1b3c-8e5a-4b7d-9c2a-3d1e6f8a9b0c.jpg",
-    Bucket:    "original-images",
-    Thumbnail: true,
-    Watermark: false,
-    Resize:    &ResizeParams{Width: 800, Height: 600},
-    OriginalName: "vacation.jpg",
+// VariantResult представляет результат обработки одного варианта
+type VariantResult struct {
+	Type        string // "resized", "thumbnail", "watermarked"
+	StoragePath string
+	ContentType string
+	Size        int64
+	Width       *int
+	Height      *int
 }
-payload, _ := json.Marshal(task)
 
-outbox := Outbox{
-    ID:        uuid.New(),
-    Topic:     "image-tasks",
-    Key:       task.ImageID, // используем тот же UUID
-    Payload:   payload,
-    CreatedAt: time.Now(),
+// ImageResult представляет полный результат обработки изображения
+type ImageResult struct {
+	ImageID      string          // UUID оригинала
+	Status       string          // "completed" или "failed"
+	ErrorMessage *string         // если failed
+	Variants     []VariantResult // варианты (если успешно)
 }
-*/

@@ -24,4 +24,10 @@ type ServiceMethods interface {
 
 	// ListImages возвращает limit последних загруженных оригинальных изображений для отображения в галерее
 	ListImages(ctx context.Context, limit int, log logger.Logger) ([]*domain.ImageData, error)
+
+	// ProcessResult обрабатывает результат из очереди, обновляет БД
+	ProcessResult(ctx context.Context, result *domain.ImageResult, log logger.Logger) error
+
+	// GetVariants возвращает все варианты для оригинала
+	GetVariants(ctx context.Context, originalID uuid.UUID, log logger.Logger) ([]*domain.ImageData, error)
 }

@@ -119,9 +119,10 @@ func LoadImageFromProcess(svc service.ServiceMethods, log logger.Logger) gin.Han
 	}
 }
 
-// DeleteImage удаляет изображение и все его варианты.
+// DeleteImage удаляет изображение и все его варианты
 func DeleteImage(svc service.ServiceMethods, log logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
+
 		idStr := c.Param("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
@@ -139,24 +140,10 @@ func DeleteImage(svc service.ServiceMethods, log logger.Logger) gin.HandlerFunc 
 	}
 }
 
-// вспомогательные структуры для ответа на /images
-type imageVariantResponse struct {
-	Type   string `json:"type"`
-	Width  *int   `json:"width,omitempty"`
-	Height *int   `json:"height,omitempty"`
-	Size   int64  `json:"size"`
-}
-
-type imageResponse struct {
-	ID           uuid.UUID              `json:"id"`
-	OriginalName string                 `json:"originalName"`
-	Status       string                 `json:"status"`
-	Variants     []imageVariantResponse `json:"variants"`
-}
-
-// GetImages возвращает список последних загруженных изображений.
+// GetImages возвращает список последних загруженных изображений
 func GetImages(svc service.ServiceMethods, log logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
+
 		// 1. Получаем limit из query (по умолчанию 20)
 		limitStr := c.DefaultQuery("limit", "20")
 		limit, err := strconv.Atoi(limitStr)
@@ -165,7 +152,7 @@ func GetImages(svc service.ServiceMethods, log logger.Logger) gin.HandlerFunc {
 		}
 
 		// 2. Вызываем сервис (получаем доменные модели)
-		images, err := svc.ListImages(c.Request.Context(), limit, log)
+		originals, err := svc.ListImages(c.Request.Context(), limit, log)
 		if err != nil {
 			log.Error("ошибка получения списка изображений", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -173,17 +160,30 @@ func GetImages(svc service.ServiceMethods, log logger.Logger) gin.HandlerFunc {
 		}
 
 		// 3. Преобразуем в ответ для фронта
-		response := make([]imageResponse, 0, len(images))
-		for _, img := range images {
-			// Здесь нужно собрать варианты. Пока variants пустой, т.к. ещё не реализовано.
-			// В будущем можно будет заполнять из дочерних записей.
-			resp := imageResponse{
-				ID:           img.ID,
-				OriginalName: img.Name,
-				Status:       img.Status,
-				Variants:     []imageVariantResponse{}, // пока пусто
+		response := make([]imageResponse, 0, len(originals))
+		for _, orig := range originals {
+			variants, err := svc.GetVariants(c.Request.Context(), orig.ID, log)
+			if err != nil {
+				log.Error("ошибка получения вариантов", "error", err, "originalID", orig.ID)
+				// продолжаем, варианты будут пустыми
 			}
-			response = append(response, resp)
+
+			variantResponses := make([]imageVariantResponse, 0, len(variants))
+			for _, v := range variants {
+				variantResponses = append(variantResponses, imageVariantResponse{
+					Type:   v.Type,
+					Width:  v.Width,
+					Height: v.Height,
+					Size:   v.Size,
+				})
+			}
+
+			response = append(response, imageResponse{
+				ID:           orig.ID,
+				OriginalName: orig.Name,
+				Status:       orig.Status,
+				Variants:     variantResponses,
+			})
 		}
 
 		c.JSON(http.StatusOK, response)
