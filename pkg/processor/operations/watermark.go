@@ -2,54 +2,69 @@ package operations
 
 import (
 	"image"
+	"image/color"
+	"image/draw"
 
-	"github.com/disintegration/imaging"
+	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
-	"golang.org/x/image/math/fixed"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
-// AddTextWatermark накладывает текст поверх изображения.
-// Для простоты используем встроенный шрифт или загружаем из файла.
+// AddTextWatermark накладывает полупрозрачный текстовый водяной знак по центру изображения
+// (размер шрифта: 10% от ширины, но не менее 20 и не более 80; цвет: чёрный с альфа 180)
 func AddTextWatermark(img image.Image, text string) (image.Image, error) {
-	// Создаём RGBA-копию, чтобы рисовать поверх
-	dst := imaging.Clone(img)
-	bounds := dst.Bounds()
 
-	// Загружаем шрифт (можно встроить простой ttf или использовать системный)
-	// Здесь для примера используем встроенный через go-bindata или заглушку.
-	// В реальности лучше загрузить из файла, указанного в конфиге.
-	fontBytes, err := loadFont() // заглушка – нужно реализовать
-	if err != nil {
-		return nil, err
-	}
-	f, err := truetype.Parse(fontBytes)
+	bounds := img.Bounds()
+	dst := image.NewRGBA(bounds)
+	draw.Draw(dst, bounds, img, bounds.Min, draw.Src)
+
+	fontParsed, err := truetype.Parse(goregular.TTF)
 	if err != nil {
 		return nil, err
 	}
 
-	// Параметры текста
-	size := 20.0
-	col := image.White
-	point := fixed.Point26_6{
-		X: fixed.Int26_6(20 * 64),
-		Y: fixed.Int26_6(float64(bounds.Dy()-20) * 64),
+	// определяем размер шрифта пропорционально ширине
+	imgWidth := float64(bounds.Dx())
+	fontSize := imgWidth * 0.1
+	if fontSize < 20 {
+		fontSize = 20
+	}
+	if fontSize > 80 {
+		fontSize = 80
 	}
 
-	d := &font.Drawer{
-		Dst:  dst,
-		Src:  image.NewUniform(col),
-		Face: truetype.NewFace(f, &truetype.Options{Size: size}),
-		Dot:  point,
+	face := truetype.NewFace(fontParsed, &truetype.Options{
+		Size: fontSize,
+		DPI:  72,
+	})
+	defer face.Close()
+
+	// точное измерение ширины текста
+	drawer := &font.Drawer{Face: face}
+	textWidth := drawer.MeasureString(text).Round()
+	textHeight := int(fontSize * 1.2)
+
+	// координаты для центрирования
+	x := (bounds.Dx() - textWidth) / 2
+	if x < 0 {
+		x = 0
 	}
-	d.DrawString(text)
+	y := (bounds.Dy()-textHeight)/2 + int(fontSize*0.8)
+
+	// рисуем текст
+	c := freetype.NewContext()
+	c.SetDPI(72)
+	c.SetFont(fontParsed)
+	c.SetFontSize(fontSize)
+	c.SetClip(bounds)
+	c.SetDst(dst)
+	c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 180}))
+
+	pt := freetype.Pt(x, y)
+	if _, err := c.DrawString(text, pt); err != nil {
+		return nil, err
+	}
 
 	return dst, nil
-}
-
-// loadFont – заглушка, в реальности читает TTF-файл.
-func loadFont() ([]byte, error) {
-	// Можно загрузить из embed или из файла.
-	// Пока вернём nil – нужно реализовать отдельно.
-	return nil, nil
 }

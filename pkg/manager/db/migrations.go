@@ -8,7 +8,7 @@ import (
 const (
 	imagesSchema = `CREATE TABLE IF NOT EXISTS images (
 			            id UUID PRIMARY KEY,
-			   original_id UUID REFERENCES images(id),
+			   original_id UUID REFERENCES images(id) ON DELETE CASCADE,
 			          name TEXT NOT NULL,
 			          type TEXT NOT NULL,
 			  content_type TEXT NOT NULL,

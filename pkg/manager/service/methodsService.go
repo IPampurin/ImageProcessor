@@ -150,20 +150,20 @@ func (s *Service) GetImage(ctx context.Context, id uuid.UUID, variant string, lo
 		if targetImg == nil {
 			return nil, "", fmt.Errorf("вариант %s не найден", variant)
 		}
+
+		// для вариантов проверяем статус (оригинал доступен всегда)
+		if targetImg.Status != "completed" {
+			return nil, "", fmt.Errorf("вариант ещё не обработан (статус: %s)", targetImg.Status)
+		}
 	}
 
-	// 3. Проверяем статус: только completed можно скачать
-	if targetImg.Status != "completed" {
-		return nil, "", fmt.Errorf("изображение ещё не обработано (статус: %s)", targetImg.Status)
-	}
-
-	// 4. Скачиваем файл из S3 по StoragePath
+	// 3. Скачиваем файл из S3 по StoragePath
 	reader, err := s.s3.Download(ctx, targetImg.StoragePath)
 	if err != nil {
 		return nil, "", fmt.Errorf("ошибка загрузки файла из S3: %w", err)
 	}
 
-	// 5. Возвращаем ридер и ContentType
+	// 4. Возвращаем ридер и ContentType
 	return reader, targetImg.ContentType, nil
 }
 

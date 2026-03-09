@@ -7,11 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	thumbWidht  = 150 // ширина миниатюры по умолчанию
-	thumbHeight = 150 // высота миниатюры по умолчанию
-)
-
 // UploadData - структура для service после запроса фронтэнда (POST /upload)
 type UploadData struct {
 	Filename    string         // оригинальное имя файла

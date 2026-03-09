@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -67,7 +67,8 @@ func main() {
 	defer func() { _ = s3.CloseS3(storageS3) }()
 
 	// инициализируем Kafka
-	brokers := strings.Split(cfg.Kafka.Brokers, ",")
+	brokerAddr := fmt.Sprintf("%s:%d", cfg.Kafka.HostName, cfg.Kafka.Port)
+	brokers := []string{brokerAddr}
 	producer := kafka.NewProducer(brokers, cfg.Kafka.InputTopic)
 	defer producer.Close()
 

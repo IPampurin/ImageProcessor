@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -104,7 +105,6 @@ func UploadImageToProcess(svc service.ServiceMethods, log logger.Logger) gin.Han
 func LoadImageFromProcess(svc service.ServiceMethods, log logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		// 1. Получаем ID из пути
 		idStr := c.Param("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
@@ -112,19 +112,28 @@ func LoadImageFromProcess(svc service.ServiceMethods, log logger.Logger) gin.Han
 			return
 		}
 
-		// 2. Получаем вариант из query (по умолчанию "original")
 		variant := c.DefaultQuery("variant", "original")
 
-		// 3. Вызываем сервис
 		reader, contentType, err := svc.GetImage(c.Request.Context(), id, variant, log)
 		if err != nil {
 			log.Error("ошибка получения изображения", "error", err, "id", id, "variant", variant)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		defer reader.Close() // закрываем после отправки
+		defer reader.Close()
 
-		// 4. Отдаём файл
+		// формируем имя файла для скачивания
+		filename := fmt.Sprintf("%s_%s", id.String(), variant)
+		switch contentType {
+		case "image/jpeg":
+			filename += ".jpg"
+		case "image/png":
+			filename += ".png"
+		default:
+			filename += ".bin"
+		}
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
 		c.DataFromReader(http.StatusOK, -1, contentType, reader, nil)
 	}
 }

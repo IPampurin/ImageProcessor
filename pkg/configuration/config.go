@@ -31,7 +31,8 @@ type ConfS3 struct {
 
 // ConfKafka - параметры работы брокера
 type ConfKafka struct {
-	Brokers       string `env:"KAFKA_BROKERS"       env-default:"localhost:9092"`
+	HostName      string `env:"KAFKA_HOST_NAME"     env-default:"localhost"`
+	Port          int    `env:"KAFKA_PORT_NUM"      env-default:"9092"`
 	InputTopic    string `env:"KAFKA_INPUT_TOPIC"   env-default:"image-tasks"`
 	OutputTopic   string `env:"KAFKA_OUTPUT_TOPIC"  env-default:"image-results"`
 	ConsumerGroup string `env:"KAFKA_CONSUMER_GROUP" env-default:"image-processor-manager"`
