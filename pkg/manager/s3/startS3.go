@@ -43,7 +43,6 @@ func InitS3(ctx context.Context, cfg *configuration.ConfS3, log logger.Logger) (
 		return nil, fmt.Errorf("ошибка InitS3 определения конфигурации внешнего хранилища: %w", err)
 	}
 
-	// создаём клиент S3 с кастомным endpoint'ом и включённым path-style (для MinIO обязательно UsePathStyle = true)
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(endpoint)
 		o.UsePathStyle = true

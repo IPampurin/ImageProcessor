@@ -24,7 +24,7 @@ func UploadImageToProcess(svc service.ServiceMethods, log logger.Logger) gin.Han
 			c.JSON(http.StatusBadRequest, gin.H{"error": "файл не найден"})
 			return
 		}
-		defer file.Close() // закроем после того, как сервис прочитает данные
+		defer file.Close()
 
 		// 2. Определяем MIME-тип по первым 512 байтам
 		buff := make([]byte, 512)
@@ -36,11 +36,21 @@ func UploadImageToProcess(svc service.ServiceMethods, log logger.Logger) gin.Han
 		}
 		contentType := http.DetectContentType(buff[:n])
 
-		// 3. Создаём MultiReader, который вернёт прочитанные байты, а затем остаток файла
-		//    (это позволяет не терять данные, которые мы уже прочитали для определения MIME)
-		reader := io.MultiReader(bytes.NewReader(buff[:n]), file)
+		// 3. Читаем весь файл в буфер (чтобы получить seekable reader)
+		//    Сначала нужно собрать полный файл: уже прочитанные 512 байт + остаток
+		//    Используем MultiReader для объединения, затем читаем всё в память
+		fullReader := io.MultiReader(bytes.NewReader(buff[:n]), file)
+		fileBytes, err := io.ReadAll(fullReader)
+		if err != nil {
+			log.Error("ошибка чтения файла", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "не удалось прочитать файл"})
+			return
+		}
 
-		// 4. Парсим остальные поля формы
+		// 4. Создаём bytes.Reader (он поддерживает Seek)
+		reader := bytes.NewReader(fileBytes)
+
+		// 5. Парсим остальные поля формы
 		thumbnail := c.PostForm("thumbnail") == "true"
 		watermark := c.PostForm("watermark") == "true"
 
@@ -66,18 +76,18 @@ func UploadImageToProcess(svc service.ServiceMethods, log logger.Logger) gin.Han
 			resize = &domain.ResizeOptions{Width: width, Height: height}
 		}
 
-		// 5. Формируем доменную структуру запроса (без HTTP-зависимостей)
+		// 6. Формируем доменную структуру запроса
 		uploadData := &domain.UploadData{
 			Filename:    header.Filename,
 			ContentType: contentType,
-			Size:        header.Size,
-			Reader:      reader,
+			Size:        header.Size, // размер известен из header
+			Reader:      reader,      // используем seekable reader
 			Thumbnail:   thumbnail,
 			Watermark:   watermark,
 			Resize:      resize,
 		}
 
-		// 6. Вызываем сервис
+		// 7. Вызываем сервис
 		id, err := svc.UploadImage(c.Request.Context(), uploadData, log)
 		if err != nil {
 			log.Error("ошибка загрузки изображения", "error", err)
@@ -85,7 +95,7 @@ func UploadImageToProcess(svc service.ServiceMethods, log logger.Logger) gin.Han
 			return
 		}
 
-		// 7. Возвращаем UUID
+		// 8. Возвращаем UUID
 		c.JSON(http.StatusAccepted, UploadResponse{ID: id})
 	}
 }
