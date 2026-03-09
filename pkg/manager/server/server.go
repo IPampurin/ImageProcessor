@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/IPampurin/ImageProcessor/pkg/configuration"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/api"
-	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/service"
 	"github.com/gin-gonic/gin"
 	"github.com/wb-go/wbf/ginext"

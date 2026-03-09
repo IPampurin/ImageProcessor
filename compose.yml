@@ -1,9 +1,10 @@
 version: '3.9'
 
 services:
-  
   image-manager:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile.manager
     container_name: image-manager
     ports:
       - ${SERVICE_PORT}:8081
@@ -12,8 +13,24 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      kafka:
+      kafka-init:
+        condition: service_completed_successfully
+      minio:
         condition: service_started
+    stop_grace_period: 45s
+    networks:
+      - image-proc-network
+
+  image-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile.processor
+    container_name: image-processor
+    env_file:
+      - .env
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
       minio:
         condition: service_started
     stop_grace_period: 45s
@@ -48,20 +65,35 @@ services:
     ports:
       - ${KAFKA_PORT_NUM}:9092
     environment:
-      # KRaft mode настройки
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_HOST_NAME:-kafka}:9092  # Имя контейнера для Docker сети
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_HOST_NAME:-kafka}:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@${KAFKA_HOST_NAME:-kafka}:9093  # Имя контейнера
-      # Общие настройки
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@${KAFKA_HOST_NAME:-kafka}:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true  # оставлено на всякий случай
+    networks:
+      - image-proc-network
+
+  kafka-init:
+    image: apache/kafka:4.1.1
+    depends_on:
+      kafka:
+        condition: service_started
+    entrypoint: >
+      sh -c "
+      echo 'Waiting for Kafka to be ready...' &&
+      sleep 10 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic image-tasks --partitions 1 --replication-factor 1 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic image-results --partitions 1 --replication-factor 1 &&
+      echo 'Topics created.'
+      "
     networks:
       - image-proc-network
 

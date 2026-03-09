@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/IPampurin/ImageProcessor/pkg/manager/db"
-	"github.com/IPampurin/ImageProcessor/pkg/manager/s3"
+	"github.com/IPampurin/ImageProcessor/pkg/s3"
 )
 
 // Service реализует бизнес-логику приложения

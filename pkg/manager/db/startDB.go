@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
+	"github.com/IPampurin/ImageProcessor/pkg/configuration"
 	pgxdriver "github.com/wb-go/wbf/dbpg/pgx-driver"
 	"github.com/wb-go/wbf/logger"
 )

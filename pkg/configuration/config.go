@@ -37,12 +37,19 @@ type ConfKafka struct {
 	ConsumerGroup string `env:"KAFKA_CONSUMER_GROUP" env-default:"image-processor-manager"`
 }
 
+// ConfThumb - параметры миниатюр
+type ConfThumb struct {
+	ThumbWidth  int `env:"WIDTH_THUMBNAIL"  env-default:"150"`
+	ThumbHeight int `env:"HEIGHT_THUMBNAIL" env-default:"150"`
+}
+
 // Config — корневая структура конфигурации
 type Config struct {
 	Server ConfServer
 	DB     ConfDB
 	S3     ConfS3
 	Kafka  ConfKafka
+	Thumb  ConfThumb
 }
 
 // ReadConfig загружает .env файл из корня проекта и возвращает заполненную структуру Config

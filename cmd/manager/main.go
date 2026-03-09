@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/IPampurin/ImageProcessor/pkg/configuration"
 	"github.com/IPampurin/ImageProcessor/pkg/domain"
-	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/db"
-	"github.com/IPampurin/ImageProcessor/pkg/manager/s3"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/server"
 	"github.com/IPampurin/ImageProcessor/pkg/manager/service"
+	"github.com/IPampurin/ImageProcessor/pkg/s3"
 	"github.com/wb-go/wbf/kafka"
 	"github.com/wb-go/wbf/logger"
 	"github.com/wb-go/wbf/retry"
@@ -96,8 +96,10 @@ func main() {
 
 // startOutboxRelay периодически читает outbox и отправляет сообщения в Kafka
 func startOutboxRelay(ctx context.Context, db *db.DataBase, producer *kafka.Producer, log logger.Logger) {
+
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -127,6 +129,7 @@ func startOutboxRelay(ctx context.Context, db *db.DataBase, producer *kafka.Prod
 
 // startResultConsumer читает результаты обработки из Kafka и обновляет БД
 func startResultConsumer(ctx context.Context, consumer *kafka.Consumer, svc *service.Service, log logger.Logger) {
+
 	msgCh := make(chan kafkago.Message) // используем тип из kafkago
 	consumer.StartConsuming(ctx, msgCh, retry.Strategy{
 		Attempts: 3,

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/IPampurin/ImageProcessor/pkg/manager/configuration"
+	"github.com/IPampurin/ImageProcessor/pkg/configuration"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
